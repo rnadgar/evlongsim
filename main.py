@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
 class Vehicle:
     ''' 
@@ -42,7 +44,6 @@ class Tire:
         u = Fx/normalForce
         return u
 
-
 class Sim:
     
     def __init__(self,Vehicle,Motor,Tire,dt,runtime):
@@ -65,7 +66,7 @@ class Sim:
 
         # Output DataFrame
         column_names = ['time (s)', 'x (m)', 'x_dot (m/s)', 'x_ddot (m/s/s)', 'Front amps (A)', 'Rear amps (A)', 'FZ Front (N)', 'FZ Rear (N)', 'FX Front (N)', 'FX Rear (N)', 'Front Slip Ratio (-)', 'Rear Slip Ratio (-)', 'Front Wheel Speed (rad/s)', 'Rear Wheel Speed (rad/s)']
-        output = pd.DataFrame(columns = column_names)
+        self.output = pd.DataFrame(columns = column_names)
     
     def update_values(self, x, x_dot, x_ddot, time, amps, Fz, P, slip, w):
         self._current_x = x
@@ -78,6 +79,9 @@ class Sim:
         self._current_slip = slip
         self._current_w = w
 
+    def w_fun(self, w, T, axle):
+        return self.Tire.J * (w - self._current_w[axle]) + self.Tire.r * self.Tire.lonFriction((1-(self._current_x_dot/(self.Tire.r * w))),self._current_Fz[axle]) * self._current_Fz[axle] - T
+
     def accel_FrictionLimited(self):
 
         P_f_list = []
@@ -85,23 +89,19 @@ class Sim:
 
         # Finding Peak Force Avaliable
         for slip_it in range(100):
-            slip_it = slip_it/100
-            P_f_list.append(self.Tire.lonFriction(slip_it,self._current_Fz[0]) * self._current_Fz[0])
-            P_r_list.append(self.Tire.lonFriction(slip_it,self._current_Fz[1]) * self._current_Fz[1])
+            slip = slip_it/100
+            P_f_list.append(self.Tire.lonFriction(slip,self._current_Fz[0]) * self._current_Fz[0])
+            P_r_list.append(self.Tire.lonFriction(slip,self._current_Fz[1]) * self._current_Fz[1])
 
         P_f = max(P_f_list)
-        P_f_slip = P_f_list.index(P_f)
+        P_f_slip = P_f_list.index(P_f)/100
 
         P_r = max(P_r_list)
-        P_r_slip = P_r_list.index(P_r)
+        P_r_slip = P_r_list.index(P_r)/100
 
-        slip = [P_f_slip, P_r_slip]
-
-        # Finding Wheel Slip Difference Needed
+        # Finding Wheel Speed
         w_f = self._current_x_dot / (self.Tire.r * (1 - P_f_slip))
         w_r = self._current_x_dot / (self.Tire.r * (1 - P_r_slip))
-
-        w = [w_f, w_r]
 
         # Finding Driveline Torque Required
         T_f = self.Tire.J * (w_f - self._current_w[0]) + self.Tire.r * P_f
@@ -111,7 +111,27 @@ class Sim:
         amps_f = T_f / self.Motor.Kt * (1 / self.Motor.k)
         amps_r = T_r / self.Motor.Kt * (1 / self.Motor.k)
 
+        print(amps_r)
+
+        # Setting Amperage Limit and back solving for other variables
+        if amps_f > 50:
+            amps_f = 50
+            T_f = amps_f * self.Motor.Kt * (1 / self.Motor.k)
+            w_f = fsolve(self.w_fun,1,args=(T_f, 0))
+            P_f_slip = 1 - self._current_x_dot / (self.Tire.r * w_f)
+            P_f = self.Tire.lonFriction(P_f_slip,self._current_Fz[0]) * self._current_Fz[0]
+
+        if amps_r > 50:
+            amps_r = 50
+            T_r = amps_r * self.Motor.Kt * (1 / self.Motor.k)
+            w_r = fsolve(self.w_fun,1,args=(T_r, 1))
+            P_r_slip = 1 - self._current_x_dot / (self.Tire.r * w_r)
+            P_r = self.Tire.lonFriction(P_r_slip,self._current_Fz[1]) * self._current_Fz[1]
+
         amps = [amps_f, amps_r]
+        w = [w_f, w_r]
+        slip = [P_f_slip, P_r_slip]
+        P = [P_f, P_r]
 
         # Longitudinal Acceleration
         x_ddot = (P_f + P_r) / self.Vehicle.m 
@@ -130,22 +150,29 @@ class Sim:
 
         time = self._current_time + self.dt
 
-        P = [P_f, P_r]
-
         return x, x_dot, x_ddot, time, amps, Fz, P, slip, w
 
     def __call__(self):
         for dt in range(int(self.runtime/self.dt)):
             current = self.accel_FrictionLimited()
             self.update_values(*current)
-
-
+            column_names = ['time (s)', 'x (m)', 'x_dot (m/s)', 'x_ddot (m/s/s)', 'Front amps (A)', 'Rear amps (A)', 'FZ Front (N)', 'FZ Rear (N)', 'FX Front (N)', 'FX Rear (N)', 'Front Slip Ratio (-)', 'Rear Slip Ratio (-)', 'Front Wheel Speed (rad/s)', 'Rear Wheel Speed (rad/s)']
+            output_data = [self._current_time, self._current_x, self._current_x_dot, self._current_x_ddot, self._current_amps[0], self._current_amps[1], self._current_Fz[0], self._current_Fz[1], self._current_P[0], self._current_P[1], self._current_slip[0], self._current_slip[1], self._current_w[0], self._current_w[1]]
+            output = pd.DataFrame(np.array(output_data, dtype=object).reshape(-1,len(output_data)),columns = column_names)
+            self.output = pd.concat([self.output,output], ignore_index=True)
 
 frc = Vehicle(0.126,0.126,5,0.032)
 frc_tire = Tire(0.032,0.00001667,1.0301,16.6675,0.05343,65.1759)
-frc_motor = Motor(500,0.8)
-
+frc_motor = Motor(200,0.8)
 
 sim = Sim(frc,frc_motor,frc_tire,0.01,5)
 
 sim()
+
+data = sim.output
+
+plt.figure()
+plt.plot(data['Front Wheel Speed (rad/s)'], label = 'Front Wheel Speed (rad/s)')
+plt.plot(data['Rear amps (A)'], label = 'Rear amps (A)')
+plt.legend()
+plt.show()
