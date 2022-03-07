@@ -59,6 +59,7 @@ class Sim:
         self._current_x_ddot = 0
         self._current_time = 0
         self._current_amps = [0, 0]
+        self._inital_Fz = [Vehicle.m * Vehicle.b/Vehicle.l, Vehicle.m * Vehicle.a/Vehicle.l]
         self._current_Fz = [Vehicle.m * Vehicle.b/Vehicle.l, Vehicle.m * Vehicle.a/Vehicle.l]
         self._current_P = [0, 0]
         self._current_slip = [0, 0]
@@ -111,7 +112,7 @@ class Sim:
         amps_f = T_f / self.Motor.Kt * (1 / self.Motor.k)
         amps_r = T_r / self.Motor.Kt * (1 / self.Motor.k)
 
-        print(amps_r)
+        # print('friction' + str(w_r))
 
         # Setting Amperage Limit and back solving for other variables
         if amps_f > 50:
@@ -125,6 +126,7 @@ class Sim:
             amps_r = 50
             T_r = amps_r * self.Motor.Kt * (1 / self.Motor.k)
             w_r = fsolve(self.w_fun,1,args=(T_r, 1))
+            # print('amp' + str(w_r))
             P_r_slip = 1 - self._current_x_dot / (self.Tire.r * w_r)
             P_r = self.Tire.lonFriction(P_r_slip,self._current_Fz[1]) * self._current_Fz[1]
 
@@ -133,8 +135,12 @@ class Sim:
         slip = [P_f_slip, P_r_slip]
         P = [P_f, P_r]
 
+        # Air Resistance
+        F_aero = (0.75 * 1.225 * self._current_x_dot**2 * 0.0418) / 2
+        print(F_aero)
+
         # Longitudinal Acceleration
-        x_ddot = (P_f + P_r) / self.Vehicle.m 
+        x_ddot = (P_f + P_r - F_aero) / self.Vehicle.m 
 
         # New Velocity
         x_dot = self._current_x_dot + x_ddot * self.dt
@@ -142,9 +148,12 @@ class Sim:
         # New Position
         x = self._current_x + x_dot * self.dt
 
+        # Weight Transfer
+        wtfr = self.Vehicle.h / self.Vehicle.l * self.Vehicle.m * x_ddot / 9.81
+
         # New Normal Forces
-        Fz_f = (self.Vehicle.m * 9.81 * self.Vehicle.b - (P_f + P_r) * self.Vehicle.h) / self.Vehicle.l
-        Fz_r = (self.Vehicle.m * 9.81 * self.Vehicle.a + (P_f + P_r) * self.Vehicle.h) / self.Vehicle.l
+        Fz_f = self._inital_Fz[0] - wtfr
+        Fz_r = self._inital_Fz[1] - wtfr
 
         Fz = [Fz_f, Fz_r]
 
@@ -163,16 +172,17 @@ class Sim:
 
 frc = Vehicle(0.126,0.126,5,0.032)
 frc_tire = Tire(0.032,0.00001667,1.0301,16.6675,0.05343,65.1759)
-frc_motor = Motor(200,0.8)
+frc_motor = Motor(2000,0.8)
 
-sim = Sim(frc,frc_motor,frc_tire,0.01,5)
+sim = Sim(frc,frc_motor,frc_tire,0.01,20)
 
 sim()
 
 data = sim.output
 
 plt.figure()
-plt.plot(data['Front Wheel Speed (rad/s)'], label = 'Front Wheel Speed (rad/s)')
-plt.plot(data['Rear amps (A)'], label = 'Rear amps (A)')
+# plt.plot(data['Front Wheel Speed (rad/s)'], label = 'Front Wheel Speed (rad/s)')
+# plt.plot(data['Rear amps (A)'], label = 'Rear amps (A)')
+plt.plot(data['x_dot (m/s)'], label = 'x_dot (m/s)')
 plt.legend()
 plt.show()
