@@ -29,7 +29,18 @@ class Motor:
         self.Kv = Kv
         self.Kt = 1/(Kv*0.10472)
         self.k = k # Effiency
-        
+
+class Battery:
+
+    def __init__(self,Ah,C,V,Ohm):
+        self.Ah = Ah
+        self.C = C
+        self.V = V
+        self.Ohm = Ohm
+
+        self.Constant = C * Ah
+        self.Burst = self.Constant * 2
+
 class Tire:
     def __init__(self, r, J, a, b, c, d):
         self.r = r
@@ -46,10 +57,11 @@ class Tire:
 
 class Sim:
     
-    def __init__(self,Vehicle,Motor,Tire,dt,runtime):
+    def __init__(self,Vehicle,Motor,Tire,Battery,dt,runtime):
         self.Vehicle = Vehicle
         self.Motor = Motor
         self.Tire = Tire
+        self.Battery = Battery
         self.dt = dt
         self.runtime = runtime
 
@@ -173,6 +185,7 @@ class Sim:
 frc = Vehicle(0.126,0.126,5,0.032)
 frc_tire = Tire(0.032,0.00001667,1.0301,16.6675,0.05343,65.1759)
 frc_motor = Motor(2000,0.8)
+frc_battery = Battery(5,50,12,0)
 
 sim = Sim(frc,frc_motor,frc_tire,0.01,20)
 
