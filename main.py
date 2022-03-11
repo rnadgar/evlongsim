@@ -69,10 +69,6 @@ class Battery:
         self.C = C
         self.V = V
 
-        # self.Constant = C * Ah
-        # self.Burst = self.Constant * 1.95 # 2 would be the standard but the batteries are fused to 2 times the continous current
-        # self.Burst_time = B_time
-
 class Tire:
     ''' 
     | r is the tire radius (meters) (Should be effective radius if known)
