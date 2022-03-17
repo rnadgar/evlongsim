@@ -277,7 +277,7 @@ frc_vehicle = Vehicle(0.126,0.126,5,0.032,0.5,0.0418)
 frc_motor = Motor(1350,1200,60,25,0.8)
 frc_tire = Tire(0.032,0.00001667,1.0301,16.6675,0.05343,65.1759,0.5)
 frc_battery = Battery(45,5,7.2) # 2 of these batteries in series :  https://www.energusps.com/shop/product/li1x5p25rt-li-ion-building-block-with-temp-sensor-3-6v-12-5ah-18c-50
-frc_battery = Battery(6.2*22.2,) # https://hobbyking.com/en_us/zippy-compact-6200mah-6s-40c-lipo-pack-xt90-1.html?queryID=9bfbfe6f12f22ddd9275d11d5c03d043&objectID=71640&indexName=hbk_live_products_analytics#qa[bW9kZT03JnBhZ2U9MSZxdWVzdGlvbl9zZWFyY2hfY29udGVudD0=]
+# frc_battery = Battery(6.2*22.2,) # https://hobbyking.com/en_us/zippy-compact-6200mah-6s-40c-lipo-pack-xt90-1.html?queryID=9bfbfe6f12f22ddd9275d11d5c03d043&objectID=71640&indexName=hbk_live_products_analytics#qa[bW9kZT03JnBhZ2U9MSZxdWVzdGlvbl9zZWFyY2hfY29udGVudD0=]
 
 # Creating Sim Object
 sim = Sim(frc_vehicle,frc_motor,frc_tire,frc_battery,0.01,15)
